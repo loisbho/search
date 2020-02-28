@@ -63,48 +63,58 @@ func startApp(_ *cli.Context) error {
 		return err
 	}
 
-	db, err := gorm.Open("sqlite3", ":memory:")
+	db, err := gorm.Open("sqlite3", "db/gorm.db")
 	if err != nil {
 		panic(err)
 	}
-	err = db.AutoMigrate(&orgDao.Organization{}).Error
-	if err != nil {
-		panic(err)
-	}
-	err = db.AutoMigrate(&ticketsDao.Ticket{}).Error
-	if err != nil {
-		panic(err)
-	}
-	err = db.AutoMigrate(&usersDao.User{}).Error
-	if err != nil {
-		panic(err)
-	}
-	orgDAO := orgDao.New(db)
-	usersDAO := usersDao.New(db)
-	ticketsDAO := ticketsDao.New(db)
+	orgdao := orgDao.New(db)
+	usersdao := usersDao.New(db)
+	ticketsdao := ticketsDao.New(db)
 
-	err = importOrganizations(ctx, orgDAO)
-	if err != nil {
-		return err
-	}
-	logger.Info("successfully imported organizations into database")
+	//TODO refactor into generic function
+	if !db.HasTable(&orgDao.Organization{}) {
+		err = db.AutoMigrate(&orgDao.Organization{}).Error
+		if err != nil {
+			panic(err)
+		}
+		orgDAO := orgDao.New(db)
+		err = importOrganizations(ctx, orgDAO)
+		if err != nil {
+			return err
+		}
+		logger.Info("successfully imported organizations into database")
 
-	err = importTickets(ctx, ticketsDAO)
-	if err != nil {
-		return err
 	}
-	logger.Info("successfully imported tickets into database")
+	if !db.HasTable(&ticketsDao.Ticket{}) {
+		err = db.AutoMigrate(&ticketsDao.Ticket{}).Error
+		if err != nil {
+			panic(err)
+		}
+		ticketsDAO := ticketsDao.New(db)
+		err = importTickets(ctx, ticketsDAO)
+		if err != nil {
+			return err
+		}
+		logger.Info("successfully imported tickets into database")
 
-	err = importUsers(ctx, usersDAO)
-	if err != nil {
-		return err
 	}
-	logger.Info("successfully imported users into database")
+	if !db.HasTable(&usersDao.User{}) {
+		err = db.AutoMigrate(&usersDao.User{}).Error
+		if err != nil {
+			panic(err)
+		}
+		usersDAO := usersDao.New(db)
+		err = importUsers(ctx, usersDAO)
+		if err != nil {
+			return err
+		}
+		logger.Info("successfully imported users into database")
+	}
 
 	server := web.HTTPServer{
-		OrgFinder:     orgDAO,
-		UsersFinder:   usersDAO,
-		TicketsFinder: ticketsDAO,
+		OrgFinder:     orgdao,
+		UsersFinder:   usersdao,
+		TicketsFinder: ticketsdao,
 	}
 
 	return runServer(ctx, logger, server)
