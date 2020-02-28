@@ -6,6 +6,7 @@ import (
 	"golang.org/x/xerrors"
 	"search/domains/users"
 	"search/util"
+	"search/validate"
 	"time"
 )
 
@@ -75,9 +76,12 @@ func (d *DAO) ImportAll(ctx context.Context, input users.ImportAllInput) error {
 }
 
 func (d *DAO) Find(ctx context.Context, input users.FindAllInput) ([]users.User, error) {
-	//todo add validation
+	if err := validate.Struct(input); err != nil {
+		return nil, err
+	}
+	val := "%" + input.Value + "%"
 	tx := d.db.Model(&User{}).
-		Where(gorm.ToColumnName(input.Field)+"= ?", input.Value)
+		Where(gorm.ToColumnName(input.Field)+" LIKE ?", val)
 
 	var users []User
 	if err := tx.Find(&users).Error; err != nil {

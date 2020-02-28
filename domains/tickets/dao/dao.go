@@ -6,6 +6,7 @@ import (
 	"golang.org/x/xerrors"
 	"search/domains/tickets"
 	"search/util"
+	"search/validate"
 	"time"
 )
 
@@ -73,9 +74,12 @@ func (d *DAO) ImportAll(ctx context.Context, input tickets.ImportAllInput) error
 
 //Find searches by field and value
 func (d *DAO) Find(ctx context.Context, input tickets.FindAllInput) ([]tickets.Ticket, error) {
-	//todo add validation
+	if err := validate.Struct(input); err != nil {
+		return nil, err
+	}
+	val := "%" + input.Value + "%"
 	tx := d.db.Model(&Ticket{}).
-		Where(gorm.ToColumnName(input.Field)+"= ?", input.Value)
+		Where(gorm.ToColumnName(input.Field)+" LIKE ?", val)
 
 	var tickets []Ticket
 	if err := tx.Find(&tickets).Error; err != nil {

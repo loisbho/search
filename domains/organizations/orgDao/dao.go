@@ -6,6 +6,7 @@ import (
 	"golang.org/x/xerrors"
 	"search/domains/organizations"
 	"search/util"
+	"search/validate"
 	"time"
 )
 
@@ -50,7 +51,6 @@ func (d *DAO) ImportAll(ctx context.Context, input organizations.ImportAllInput)
 
 		tx := d.db.Create(&org)
 		if err := tx.Error; err != nil {
-			//todo idempotent, if record already exists, continue
 			return err
 		}
 	}
@@ -59,9 +59,12 @@ func (d *DAO) ImportAll(ctx context.Context, input organizations.ImportAllInput)
 
 //Find searches by field and value
 func (d *DAO) Find(ctx context.Context, input organizations.FindAllInput) ([]organizations.Organization, error) {
-	//todo add validation
+	if err := validate.Struct(input); err != nil {
+		return nil, err
+	}
+	val := "%" + input.Value + "%"
 	tx := d.db.Model(&Organization{}).
-		Where(gorm.ToColumnName(input.Field)+"= ?", input.Value)
+		Where(gorm.ToColumnName(input.Field)+" LIKE ?", val)
 
 	var orgs []Organization
 	if err := tx.Find(&orgs).Error; err != nil {
